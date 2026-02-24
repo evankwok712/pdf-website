@@ -11,24 +11,30 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 const PDFViewerClient = () => {
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
+  const MOBILE_BREAKPOINT = 768; // px
   const [containerWidth, setContainerWidth] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
   const containerRef = useRef(null);
 
   const onDocumentLoadSuccess = ({ numPages }) => {
     setNumPages(numPages);
   };
 
-  // Measure container width on mount and resize
+  // Measure container width and detect mobile on mount and resize
   useEffect(() => {
-    const updateWidth = () => {
-      if (containerRef.current) {
-        setContainerWidth(containerRef.current.clientWidth * 0.8); // 90% of container width
-      }
+    const update = () => {
+      const measured = containerRef.current?.clientWidth || window.innerWidth;
+      setContainerWidth(Math.max(measured * 0.8, 320));
+      setIsMobile(window.innerWidth <= MOBILE_BREAKPOINT);
     };
 
-    updateWidth();
-    window.addEventListener("resize", updateWidth);
-    return () => window.removeEventListener("resize", updateWidth);
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+    };
   }, []);
 
   const goToPrevPage = () =>
@@ -46,7 +52,7 @@ const PDFViewerClient = () => {
           left: "0",
           right: "0",
           transform: "translateY(-50%)",
-          display: "flex",
+          display: isMobile ? "none" : "flex",
           gap: "1rem",
           alignItems: "center",
           justifyContent: "space-between",
@@ -89,9 +95,13 @@ const PDFViewerClient = () => {
         ref={containerRef}
         style={{
           borderRadius: "4px",
-          overflow: "hidden",
+          overflow: isMobile ? "visible" : "hidden",
           display: "flex",
           justifyContent: "center",
+          flexDirection: isMobile ? "column" : "row",
+          gap: isMobile ? "1rem" : undefined,
+          alignItems: "center",
+          width: "100%",
         }}
       >
         <Document
@@ -115,12 +125,26 @@ const PDFViewerClient = () => {
             </div>
           }
         >
-          <Page
-            pageNumber={pageNumber}
-            renderTextLayer={true}
-            renderAnnotationLayer={true}
-            width={containerWidth || 500}
-          />
+          {isMobile ? (
+            // Render all pages vertically for mobile (scrollable)
+            Array.from({ length: numPages || 0 }).map((_, idx) => (
+              <Page
+                key={idx}
+                pageNumber={idx + 1}
+                renderTextLayer={false}
+                renderAnnotationLayer={false}
+                width={containerWidth || 320}
+                style={{ marginBottom: "1rem" }}
+              />
+            ))
+          ) : (
+            <Page
+              pageNumber={pageNumber}
+              renderTextLayer={true}
+              renderAnnotationLayer={true}
+              width={containerWidth || 500}
+            />
+          )}
         </Document>
       </div>
     </div>
