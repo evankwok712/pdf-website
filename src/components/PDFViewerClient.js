@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/TextLayer.css";
 import "react-pdf/dist/Page/AnnotationLayer.css";
@@ -11,10 +11,25 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 const PDFViewerClient = () => {
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
+  const [containerWidth, setContainerWidth] = useState(null);
+  const containerRef = useRef(null);
 
   const onDocumentLoadSuccess = ({ numPages }) => {
     setNumPages(numPages);
   };
+
+  // Measure container width on mount and resize
+  useEffect(() => {
+    const updateWidth = () => {
+      if (containerRef.current) {
+        setContainerWidth(containerRef.current.clientWidth * 0.8); // 90% of container width
+      }
+    };
+
+    updateWidth();
+    window.addEventListener("resize", updateWidth);
+    return () => window.removeEventListener("resize", updateWidth);
+  }, []);
 
   const goToPrevPage = () =>
     setPageNumber(pageNumber - 1 <= 1 ? 1 : pageNumber - 1);
@@ -26,10 +41,17 @@ const PDFViewerClient = () => {
     <div style={{ padding: "2rem" }}>
       <nav
         style={{
-          marginBottom: "1rem",
+          position: "fixed",
+          top: "50%",
+          left: "0",
+          right: "0",
+          transform: "translateY(-50%)",
           display: "flex",
           gap: "1rem",
           alignItems: "center",
+          justifyContent: "space-between",
+          padding: "0 2rem",
+          zIndex: 1000,
         }}
       >
         <button
@@ -37,37 +59,35 @@ const PDFViewerClient = () => {
           disabled={pageNumber <= 1}
           style={{
             padding: "0.5rem 1rem",
-            backgroundColor: pageNumber <= 1 ? "#ccc" : "#007bff",
-            color: "white",
+            backgroundColor: pageNumber <= 1 ? "#FFF" : "#FFF",
+            color: "black",
             border: "none",
-            borderRadius: "4px",
             cursor: pageNumber <= 1 ? "not-allowed" : "pointer",
           }}
         >
-          Prev
+          &lt;
         </button>
         <button
           onClick={goToNextPage}
           disabled={pageNumber >= numPages}
           style={{
             padding: "0.5rem 1rem",
-            backgroundColor: pageNumber >= numPages ? "#ccc" : "#007bff",
-            color: "white",
+            backgroundColor: pageNumber >= numPages ? "#FFF" : "#FFF",
+            color: "black",
             border: "none",
-            borderRadius: "4px",
             cursor: pageNumber >= numPages ? "not-allowed" : "pointer",
           }}
         >
-          Next
+          &gt;
         </button>
-        <p style={{ margin: 0, fontWeight: "bold", color: "#333" }}>
+        {/* <p style={{ margin: 0, fontWeight: "bold", color: "#333" }}>
           Page {pageNumber} of {numPages || "..."}
-        </p>
+        </p> */}
       </nav>
 
       <div
+        ref={containerRef}
         style={{
-          border: "1px solid #ccc",
           borderRadius: "4px",
           overflow: "hidden",
           display: "flex",
@@ -99,7 +119,7 @@ const PDFViewerClient = () => {
             pageNumber={pageNumber}
             renderTextLayer={true}
             renderAnnotationLayer={true}
-            width={800}
+            width={containerWidth || 500}
           />
         </Document>
       </div>
